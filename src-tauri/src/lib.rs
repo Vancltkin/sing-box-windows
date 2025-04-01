@@ -12,8 +12,8 @@ use crate::app::subscription_service::{
 };
 use crate::app::system_service::{check_admin, restart_as_admin};
 use crate::app::update_service::{check_update, download_and_install_update};
-use tauri::{AppHandle, Manager};
-use tauri_plugin_autostart::MacosLauncher;
+use tauri::{AppHandle, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
+use tauri_plugin_autostart::LaunchStrategy;
 
 pub mod app;
 pub mod config;
@@ -30,42 +30,39 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
-        tauri_plugin_autostart::LaunchStrategy::default(),
-        Some(vec!["--hide"]),
+            LaunchStrategy::default(),
+            Some(vec!["--hide"]),
         ))
         .system_tray(SystemTray::new().with_menu(
-        SystemTrayMenu::new()
-        .add_item(SystemTrayMenuItem::new("Show", "show"))
-        .add_item(SystemTrayMenuItem::new("Exit", "exit")),
+            SystemTrayMenu::new()
+                .add_item(SystemTrayMenuItem::new("Show", "show"))
+                .add_item(SystemTrayMenuItem::new("Exit", "exit")),
         ))
         .on_system_tray_event(|app, event| {
-        if let SystemTrayEvent::MenuItemClick { id, .. } = event {
-        match id.as_str() {
-            "show" => {
-                let window = app.get_window("main").unwrap();  
-                window.show().unwrap();
-            }
-            "exit" => {
-                std::process::exit(0);
-            }
-             _ => {}
-            }
-        }})
-        .setup(|app| {
-            // if cfg!(debug_assertions) {
-            //     app.handle().plugin(
-            //         tauri_plugin_log::Builder::default()
-            //             .level("info")
-            //             .build(),
-            //     )?;
-            // }
-            // 判断参数
-            let args: Vec<String> = std::env::args().collect();
-            if args.len() > 1 {
-                if args[1] == "--hide" {
-                    let window = app.get_window("main").unwrap();
-                    window.hide().unwrap();
+            if let SystemTrayEvent::MenuItemClick { id, .. } = event {
+                match id.as_str() {
+                    "show" => {
+                        let window = app.get_window("main").unwrap();  
+                        window.show().unwrap();
+                    }
+                    "exit" => {
+                        std::process::exit(0);
+                    }
+                    _ => {}
                 }
+            }
+        })
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            app.listen_global("tauri://close-requested", move |_event| {
+                let window = app_handle.get_window("main").unwrap();
+                window.hide().unwrap(); // Прячет окно вместо выхода
+            });
+
+            let args: Vec<String> = std::env::args().collect();
+            if args.len() > 1 && args[1] == "--hide" {
+                let window = app.get_window("main").unwrap();
+                window.hide().unwrap();
             }
             Ok(())
         })
@@ -101,7 +98,6 @@ pub fn run() {
 
 fn show_window(app: &AppHandle) {
     let windows = app.webview_windows();
-
     windows
         .values()
         .next()
