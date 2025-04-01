@@ -33,7 +33,24 @@ pub fn run() {
         tauri_plugin_autostart::LaunchStrategy::default(),
         Some(vec!["--hide"]),
         ))
-
+        .system_tray(SystemTray::new().with_menu(
+        SystemTrayMenu::new()
+        .add_item(SystemTrayMenuItem::new("Show", "show"))
+        .add_item(SystemTrayMenuItem::new("Exit", "exit")),
+        ))
+        .on_system_tray_event(|app, event| {
+        if let SystemTrayEvent::MenuItemClick { id, .. } = event {
+        match id.as_str() {
+            "show" => {
+                let window = app.get_window("main").unwrap();  
+                window.show().unwrap();
+            }
+            "exit" => {
+                std::process::exit(0);
+            }
+             _ => {}
+            }
+        }})
         .setup(|app| {
             // if cfg!(debug_assertions) {
             //     app.handle().plugin(
