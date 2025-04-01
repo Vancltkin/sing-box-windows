@@ -30,9 +30,10 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
-            MacosLauncher::LaunchAgent,
-            Some(vec!["--hide"]),
+        tauri_plugin_autostart::LaunchStrategy::default(),
+        Some(vec!["--hide"]),
         ))
+
         .setup(|app| {
             // if cfg!(debug_assertions) {
             //     app.handle().plugin(
